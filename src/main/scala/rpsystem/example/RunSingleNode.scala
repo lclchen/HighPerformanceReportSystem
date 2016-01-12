@@ -12,17 +12,21 @@ object RunSingleNode {
   def main(args: Array[String]): Unit = {
     val system = new SingleNodeSystem()
     system.createDefaultCappedCollection
+    //disable recovery-module
     system.setEvtRecoveryAvailable(false)
     system.setCmdRecoveryAvailable(false)
-    
+
+    //options - to change different shardings strategies
     //system.setShardingsNumber(10)
     //system.setCmdBusMode(CommandBus.SHARDINGS_MODE_MOD_ACCOUTID(10))
-    
+
+    //options - to change different events packaging strategies
     //system.setCmdHdlMode(CommandHandler.SNAPSHOT_MODE_EVENTSNUM(5, 0))
     //system.setCmdHdlMode(CommandHandler.SNAPSHOT_MODE_MILLISECOND(60000, new java.util.Date().getTime()))
     
     system.initial
-    
+
+    // create virtual accounts for testing
     val scanner = new Scanner(System.in)
     Thread.sleep(2000)
     print("Create 10000 accounts example? (y/n)")
@@ -38,7 +42,8 @@ object RunSingleNode {
     }else{
       print("Select 'not to create'.")
     }
-    
+
+    // create virtual commands for testing
     var i = 1
     while(true) {
       val idStr: String = "550E8400-E29B-11D4-A716-4466" + (i + 10000000).toString        
@@ -53,14 +58,17 @@ object RunSingleNode {
       
       system.sendCommand(cmd)
       //system.sendCommand(cmd2)
+
       i += 1
       if(i == 10001)
         i=1
-      if(i % 3 == 0) //change the frequency
+
+      //change the frequency
+      if(i % 3 == 0)
         Thread.sleep(1)
     }
     
     Thread.sleep(2000)
-	system.shutdown()
+	  system.shutdown()
   }
 }

@@ -125,18 +125,6 @@ class SingleNodeSystem {
   }
   
   def initial() = {
-    /*
-    val redisProcessingCmd = new RedisProcessingCmdRecStorage(cmdProcessingRedisClient)
-    val mongoMessageCmd = new MongoMessageCmdRecStorage(cmdMessageMongoCol)
-    val redisProcessEvt = new RedisProcessingEvtRecStorage(evtProcessingRedisClient)
-    val mongoMessageEvt = new MongoMessageEvtRecStorage(evtMessageMongoCol)
-    
-    val commandRecoveryService:CommandRecoveryService = new CommandRecoveryService(redisProcessingCmd, mongoMessageCmd)
-    val eventRecoveryService:EventRecoveryService = new EventRecoveryService(redisProcessEvt, mongoMessageEvt)
-    commandRecoveryService.available = isCmdRecoveryAvailable
-    eventRecoveryService.available = isEvtRecoveryAvailable 
-    * 
-    */
     
     // initial Actor System
     system = ActorSystem(actorSystemName)
