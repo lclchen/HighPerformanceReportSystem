@@ -258,7 +258,7 @@ class EventBusActor(evtBus:EventBus) extends Actor {
   override def preStart = {
     try{
       implicit val formats = DefaultFormats     
-      val json:List[Map[String,String]] = parse(Source.fromFile("EventHandlersInfo.json").mkString).extract[List[Map[String, String]]]
+      val json:List[Map[String,String]] = parse(Source.fromFile("./src/main/resources/EventHandlersInfo.json").mkString).extract[List[Map[String, String]]]
       //if the json is empty, the List().length will be 0
       json.foreach(item => {
         nameMap += ((UUID.fromString(getString(item.get("ID"))), getString(item.get("Name"))))
