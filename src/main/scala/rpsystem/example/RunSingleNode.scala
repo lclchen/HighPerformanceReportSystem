@@ -29,7 +29,7 @@ object RunSingleNode {
     // create virtual accounts for testing
     val scanner = new Scanner(System.in)
     Thread.sleep(2000)
-    print("Create 10000 accounts example? (y/n)")
+    logger.info("Create 10000 accounts example? (y/n)")
     if (scanner.next() == "y"){
       var accountIds:scala.collection.mutable.ArrayBuffer[UUID] = new scala.collection.mutable.ArrayBuffer[UUID]()
       for(i <- 1 to 10000){
@@ -38,9 +38,9 @@ object RunSingleNode {
         accountIds = accountIds :+ id      
         system.addAccountSnapshot(AccountAggrFactory.getAccountAggr(id, "Name"+i, "RMB", new BigDecimal(10000)))
       }
-      print("create accounts successfully")
+      logger.info("create accounts successfully")
     }else{
-      print("Select 'not to create'.")
+      logger.info("Select 'not to create'.")
     }
 
     // create virtual commands for testing

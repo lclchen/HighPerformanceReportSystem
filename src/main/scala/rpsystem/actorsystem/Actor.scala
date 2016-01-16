@@ -139,7 +139,7 @@ class EventBusActor(evtBus:EventBus) extends Actor {
   override def receive = {
     case events: Traversable[Event] =>
       events.foreach(evt => {
-        logger.info("EB receive one event: " + evt.toString)
+        logger.debug("EB receive one event: " + evt.toString)
         evtBus.recordLastReceivedEvt(evt)//would delete redis-cmd-all
         actorRefMap.foreach(pair => {
           if (isMatch(evt, pair._1)){
@@ -148,7 +148,7 @@ class EventBusActor(evtBus:EventBus) extends Actor {
               case Some(list)=>
                 val sentEvts = evtBus.isPackageFull(evt, list)
                 if(sentEvts != null){
-                  if(priorityMap.getOrElse(pair._1, -1) >= 2)
+                  if(priorityMap.getOrElse(pair._1, -1) >= EventHandler.PRIORITY_HIGH)
                 	while(pair._2.isTerminated)
                	      Thread.sleep(6000)
                   pair._2 ! sentEvts
@@ -160,14 +160,14 @@ class EventBusActor(evtBus:EventBus) extends Actor {
       })
     case recEvt: RecoveryEvent =>
       // RecoveryEvent is sent by Event-Bus itself at the beginning of system starting.
-      logger.info("EB receive onerRecovery-event: " + recEvt.toString)
+      logger.debug("EB receive onerRecovery-event: " + recEvt.toString)
       actorRefMap.foreach(pair => {
         if (isMatch(recEvt, pair._1)) {
           packageMap.get(pair._1) match {
             case Some(list) =>
               val sentEvts = evtBus.isPackageFull(recEvt, list)
               if (sentEvts != null) {
-                if(priorityMap.getOrElse(pair._1, -1) >= 2)
+                if(priorityMap.getOrElse(pair._1, -1) >= EventHandler.PRIORITY_HIGH)
                   while(pair._2.isTerminated)
                	    Thread.sleep(6000)
                 pair._2 ! sentEvts
@@ -270,7 +270,7 @@ class EventBusActor(evtBus:EventBus) extends Actor {
         }
         catch{
           case _ =>logger.error("can not connect to EH:　" + getString(item.get("Name")))
-          if(priorityMap.getOrElse(UUID.fromString(getString(item.get("ID"))), -1) >= 2)
+          if(priorityMap.getOrElse(UUID.fromString(getString(item.get("ID"))), -1) >= EventHandler.PRIORITY_HIGH)
             preStart
         }
       })      

@@ -54,6 +54,6 @@ class EventStore(dataBase: MongoPersistence) extends IEventStore{
   }
 
   def isEventExist(cmdID: UUID, acctID: UUID): Boolean = {
-	dataBase.isEventExits(cmdID, acctID)
+	  dataBase.isEventExist(cmdID, acctID)
   }
 }

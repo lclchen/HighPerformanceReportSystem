@@ -21,7 +21,7 @@ libraryDependencies ++= Seq(
 //"com.typesafe.akka" %% "akka-remote" % "2.4.1",
 "com.typesafe.akka" %% "akka-remote" % "2.3.12",
 "com.typesafe.akka" %% "akka-actor" % "2.3.12",
-//"com.typesafe" % "config" % "1.3.0",
+"com.typesafe" % "config" % "1.3.0",
 "log4j" % "log4j" % "1.2.14",
 //"net.debasishg" %% "redisclient" % "2.13",
 "redis.clients" % "jedis" % "2.7.3",

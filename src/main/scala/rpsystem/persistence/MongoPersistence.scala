@@ -11,7 +11,15 @@ import com.sun.beans.decoder.TrueElementHandler
 
 case class TransactionStream(transactionid: Int, user: Int, events: ListBuffer[Event])
 
-class MongoPersistence(mongo: MongoDB) {
+trait IPersistence {
+  def saveEvent(evt:Event): Unit
+  def isEventExist(evtId:UUID): Boolean
+  def addSnapshot(account: AccountAggr): Unit
+  def saveSnapshot(account: AccountAggr): Unit
+  def isSnapshotExist(accountID: UUID): Boolean
+}
+
+class MongoPersistence(mongo: MongoDB) extends IPersistence {
   val EventCollection = mongo("events")
   val SnapshotCollection = mongo("accounts")
 
@@ -26,7 +34,7 @@ class MongoPersistence(mongo: MongoDB) {
         EventCollection.insert(MongoORM.getObjFromEvent(evt), WriteConcern.SAFE)
   }
   
-  def saveEvent(evt:Event){
+  override def saveEvent(evt:Event): Unit = {
     EventCollection.insert(MongoORM.getObjFromEvent(evt), WriteConcern.SAFE)
   }
 
@@ -37,11 +45,18 @@ class MongoPersistence(mongo: MongoDB) {
     events
   }
   
-  def isEventExits(cmdID:UUID, acctID:UUID):Boolean = {
+  def isEventExist(cmdID:UUID, acctID:UUID):Boolean = {
     EventCollection.find(MongoDBObject("CommandID" -> cmdID)).foreach(obj=>{
       if(MongoORM.getEventFromDBObj(obj).accountID.toString.equals(acctID.toString))
         return true
     })
+    return false
+  }
+
+  override def isEventExist(evtID: UUID):Boolean = {
+    EventCollection.find(MongoDBObject("EventID" -> evtID)).foreach(obj=>
+        return true
+    )
     return false
   }
 
@@ -52,12 +67,12 @@ class MongoPersistence(mongo: MongoDB) {
   }
   * */
 
-  def addSnapshot(account: AccountAggr): Unit = {
+  override def addSnapshot(account: AccountAggr): Unit = {
     val mongoObj = MongoORM.getObjFromAcct(account)
     SnapshotCollection.insert(mongoObj, WriteConcern.SAFE)
   }
 
-  def saveSnapshot(account: AccountAggr): Unit = {
+  override def saveSnapshot(account: AccountAggr): Unit = {
     val query = MongoDBObject("AccountID" -> account.id.toString)
     val mongoObject = MongoDBObject("$set" -> MongoDBObject("UserName" -> account.username, "Currency" -> account.currency, "Balance" -> account.balance.toString, "Revision" -> account.getRevision, "Activated" -> account.getActivated))
     mongo.setWriteConcern(WriteConcern.SAFE)
@@ -79,7 +94,7 @@ class MongoPersistence(mongo: MongoDB) {
     }
   }
 
-  def isSnapshotExist(accountID: UUID): Boolean = {
+  override def isSnapshotExist(accountID: UUID): Boolean = {
     val query = MongoDBObject("AccountID" -> accountID.toString)
     SnapshotCollection .findOne(query) match{
       case Some(e) => return true 

@@ -3,6 +3,7 @@ package rpsystem.system
 import akka._
 import akka.actor._
 import redis.clients.jedis._
+import com.typesafe.config.{Config, ConfigFactory}
 import com.mongodb.casbah.Imports.MongoClient
 import com.mongodb.casbah.commons.Imports.MongoDBObject
 import com.mongodb.casbah.commons.Imports.DBObject
@@ -15,30 +16,35 @@ import rpsystem.recovery._
 
 class SingleNodeSystem {
   var actorSystemName:String = "SingleNodeReportSystem"
-  var shardingsNumber:Int = 1
-  var isCmdRecoveryAvailable:Boolean = true
-  var isEvtRecoveryAvailable:Boolean = true
+  val config: Config = ConfigFactory.load("./system/single_node.conf")
+  var shardingsNumber:Int = config.getInt("system.command-handler.shardings")
+  var isCmdRecoveryAvailable:Boolean = config.getBoolean("system.recovery.command.available")
+  var isEvtRecoveryAvailable:Boolean = config.getBoolean("system.recovery.event.available")
   var cmdBusMode:CommandBus.SHARDINGS_MODE = CommandBus.SHARDINGS_MODE_MOD_ACCOUTID(shardingsNumber)
   var cmdHdlMode:CommandHandler.SNAPSHOT_MODE = CommandHandler.SNAPSHOT_MODE_ALWAYS()
   var evtBusMode:EventBus.BROADCAST_MODE = EventBus.BROADCAST_MODE_NOPACK()
+
+  var cmdMessageMongoCol:MongoCollection = MongoClient(config.getString("system.recovery.command.mongo.host"),
+    config.getInt("system.recovery.command.mongo.port"))
+    .getDB(config.getString("system.recovery.command.mongo.db"))
+    .apply(config.getString("system.recovery.command.mongo.collection"))
+  var evtMessageMongoCol:MongoCollection = MongoClient(config.getString("system.recovery.event.mongo.host"),
+    config.getInt("system.recovery.event.mongo.port"))
+    .getDB(config.getString("system.recovery.event.mongo.db"))
+    .apply(config.getString("system.recovery.event.mongo.collection"))
   
-  //var cmdProcessingRedisClient:RedisClient = new RedisClient("localhost", 6379)
-  //var evtProcessingRedisClient:RedisClient = new RedisClient("localhost", 6379)
-  var cmdMessageMongoCol:MongoCollection = MongoClient("localhost", 27017).getDB("rpsystem").apply("cmd_backup")
-  var evtMessageMongoCol:MongoCollection = MongoClient("localhost", 27017).getDB("rpsystem").apply("evt_backup")
-  
-  var mongodbAccountStore:MongoDB = MongoClient("localhost", 27017).getDB("rpsystem")
-  var mongodbEventStore:MongoDB = MongoClient("localhost", 27017).getDB("rpsystem")  
+  var mongodbAccountStore:MongoDB = MongoClient(config.getString("system.command-handler.mongo.default.account-store.host"),
+    config.getInt("system.command-handler.mongo.default.account-store.port"))
+    .getDB(config.getString("system.command-handler.mongo.default.account-store.db"))
+  var mongodbEventStore:MongoDB = MongoClient(config.getString("system.command-handler.mongo.default.event-store.host"),
+    config.getInt("system.command-handler.mongo.default.event-store.port"))
+    .getDB(config.getString("system.command-handler.mongo.default.event-store.db"))
   
   var system:ActorSystem = null
   var commandMiddlewareActor:ActorRef = null
   var commandBusActor:ActorRef = null
   var cmdhdlActors:Seq[ActorRef] = null
   var eventBusActor:ActorRef = null
-      
-  def setActorSystemName(name:String):Unit = {
-    actorSystemName = name
-  }
   
   def setShardingsNumber(num:Int):Unit = {
     if(num != shardingsNumber){
@@ -80,33 +86,7 @@ class SingleNodeSystem {
     evtBusMode = mode
   }
   
-  /*
-  def setCmdProcessingRedisClient(client:RedisClient):Unit = {
-    cmdProcessingRedisClient = client
-  }
-  
-  def setEvtProcessingRedisClient(client:RedisClient):Unit = {
-    evtProcessingRedisClient = client
-  }
-  * */
-  
-  def setCmdMessageMongoCol(col:MongoCollection):Unit = {
-    cmdMessageMongoCol = col
-  }
-  
-  def setEvtMessageMongoCol(col:MongoCollection):Unit = {
-    evtMessageMongoCol = col
-  }
-  
-  def setMongodbAccountStore(db:MongoDB):Unit = {
-    mongodbAccountStore = db
-  }
-  
-  def setMongodbEventStore(db:MongoDB):Unit = {
-    mongodbEventStore = db
-  }
-  
-  def setCommandHandlerActors(actors:Seq[ActorRef]) = {
+  def setCommandHandlerActors(actors: Seq[ActorRef]) = {
     //set shardingsNum first before this function
     cmdhdlActors = actors
     if(actors.length != shardingsNumber)
@@ -118,10 +98,18 @@ class SingleNodeSystem {
     options.put("capped", true)
     options.put("size", 102400000)
     options.put("max", 100000)
-    if(!MongoClient("localhost", 27017).getDB("rpsystem").collectionExists("cmd_backup"))
-    	MongoClient("localhost", 27017).getDB("rpsystem").createCollection("cmd_backup", options) 
-    if(!MongoClient("localhost", 27017).getDB("rpsystem").collectionExists("evt_backup"))
-    	MongoClient("localhost", 27017).getDB("rpsystem").createCollection("evt_backup", options) 
+    val cmdDb = MongoClient(config.getString("system.recovery.command.mongo.host"),
+      config.getInt("system.recovery.command.mongo.port"))
+      .getDB(config.getString("system.recovery.command.mongo.db"))
+    val evtDb = MongoClient(config.getString("system.recovery.event.mongo.host"),
+      config.getInt("system.recovery.event.mongo.port"))
+      .getDB(config.getString("system.recovery.event.mongo.db"))
+
+    if(!cmdDb.collectionExists(config.getString("system.recovery.command.mongo.collection")))
+      cmdDb.createCollection(config.getString("system.recovery.command.mongo.collection"), options)
+
+    if(!evtDb.collectionExists(config.getString("system.recovery.event.mongo.collection")))
+      evtDb.createCollection(config.getString("system.recovery.event.mongo.collection"), options)
   }
   
   def initial() = {
@@ -148,7 +136,8 @@ class SingleNodeSystem {
           val repository = new Repository(accountStore, eventStore)
           val commandHandler = new CommandHandler(repository, getDefaultEventRecoveryService)
           commandHandler.setMode(getCmdHdlMode)
-          val commandHandlerActor = system.actorOf(Props(new CommandHandlerActor(commandHandler, eventBusActor)), name="CommandHandlerActor"+i)
+          val commandHandlerActor = system.actorOf(Props(new CommandHandlerActor(commandHandler, eventBusActor)),
+            name="CommandHandlerActor" + i)
           cmdhdlActors = cmdhdlActors :+ commandHandlerActor
         }
       case _ =>
@@ -156,10 +145,12 @@ class SingleNodeSystem {
     
     val commandBus = new CommandBus(getDefaultCommandRecoveryService)
     commandBus.setMode(cmdBusMode)
-    commandBusActor = system.actorOf(Props(new CommandBusActor(commandBus, cmdhdlActors, eventBusActor)), name="CommandBusActor")
+    commandBusActor = system.actorOf(Props(new CommandBusActor(commandBus, cmdhdlActors, eventBusActor)),
+      name="CommandBusActor")
       
     val commandMiddleware = new CommandMiddleware(getDefaultCommandRecoveryService)
-    commandMiddlewareActor = system.actorOf(Props(new CommandMiddlewareActor(commandMiddleware, commandBusActor)), name="CommandMiddlewareActor")    
+    commandMiddlewareActor = system.actorOf(Props(new CommandMiddlewareActor(commandMiddleware, commandBusActor)),
+      name="CommandMiddlewareActor")
   }
   
   def sendCommand(cmd: Command):Unit = {
@@ -172,7 +163,8 @@ class SingleNodeSystem {
   }
   
   def getDefaultCommandRecoveryService():CommandRecoveryService = {
-    val redisProcessingCmd = new RedisProcessingCmdRecStorage(new Jedis("localhost"))
+    val redisProcessingCmd = new RedisProcessingCmdRecStorage(new Jedis(config.getString("system.recovery.command.redis.host"),
+      config.getInt("system.recovery.command.redis.port")))
     val mongoMessageCmd = new MongoMessageCmdRecStorage(cmdMessageMongoCol)        
     val cmdRecoveryService = new CommandRecoveryService(redisProcessingCmd, mongoMessageCmd) 
     cmdRecoveryService.available = isCmdRecoveryAvailable 
@@ -180,7 +172,8 @@ class SingleNodeSystem {
   }
   
   def getDefaultEventRecoveryService():EventRecoveryService = {
-    val redisProcessingEvt = new RedisProcessingEvtRecStorage(new Jedis("localhost"))
+    val redisProcessingEvt = new RedisProcessingEvtRecStorage(new Jedis(config.getString("system.recovery.event.redis.host"),
+      config.getInt("system.recovery.event.redis.port")))
     val mongoMessageEvt = new MongoMessageEvtRecStorage(evtMessageMongoCol)
     val evtRecoveryService = new EventRecoveryService(redisProcessingEvt, mongoMessageEvt) 
     evtRecoveryService.available = isEvtRecoveryAvailable 
