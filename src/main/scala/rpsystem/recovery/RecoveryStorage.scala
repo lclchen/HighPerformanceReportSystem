@@ -85,13 +85,16 @@ class RedisProcessingCmdRecStorage(client: Jedis) extends ProcessingCmdRecStorag
   override def getLastSendCommandID: Option[UUID] = {
     val str = client.get("LastSendCommand")
     str match {
-      case "" => return None
+      case null => return None
       case _ => return Some(UUID.fromString(str.substring(0, 36)))
     }
   }
 
   override def getLastSendCmdIDAcctID: String = {
-    return client.get("LastSendCommand")
+    val result = client.get("LastSendCommand")
+    if(result == null)
+      return ""
+    return result
   }
 
   override def removeLastSendCommand() {
@@ -160,13 +163,16 @@ class RedisProcessingEvtRecStorage(client: Jedis) extends ProcessingEvtRecStorag
   override def getLastSendEventID(): Option[UUID] = {
     val str = client.get("LastSendEvent")
     str match {
-      case "" => return None
+      case null => return None
       case _ => return Some(UUID.fromString(str.substring(0, 36)))
     }
   }
   
   override def getLastSendEventMessage: String = {
-    return client.get("LastSendEvent")
+    val result = client.get("LastSendEvent")
+    if (result == null)
+      return ""
+    return result
   }
 
   override def removeLastSendEvent {

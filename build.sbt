@@ -26,6 +26,8 @@ libraryDependencies ++= Seq(
 //"net.debasishg" %% "redisclient" % "2.13",
 "redis.clients" % "jedis" % "2.7.3",
 //"com.etaty.rediscala" %% "rediscala" % "1.5.0",
-"org.json4s" %% "json4s-jackson" % "3.2.11"
+"org.json4s" %% "json4s-jackson" % "3.2.11",
+"com.google.code.gson" % "gson" % "2.5",
+"com.thoughtworks.xstream"% "xstream" % "1.4.8"
 )
     

@@ -1,5 +1,6 @@
 package rpsystem.domain
 
+import java.util.UUID
 import rpsystem.persistence.IPersistence
 import rpsystem.recovery.{RecoveryEvent, IEventRecoveryService}
 
@@ -17,7 +18,7 @@ trait IEventHandler {
   def handle(evt: Event): Unit
 }
 
-class EventHandler(persistence:IPersistence, evtRecSrv:IEventRecoveryService) extends IEventHandler with IRecordEvent {
+class EventHandler(persistence:IPersistence, evtRecSrv:IEventRecoveryService, val uuid:UUID) extends IEventHandler with IRecordEvent {
 
   override def recordEvent(evt:Event): Unit = {
     persistence.saveEvent(evt)
@@ -42,6 +43,8 @@ class EventHandler(persistence:IPersistence, evtRecSrv:IEventRecoveryService) ex
           updateAccount(evt)
         if (isUpdateStatistics)
           updateStatistics(evt)
+        if (evtRecSrv.available)
+          evtRecSrv.removeProcessedEvtByEH(evt.eventID, uuid)
 
       case _ =>
         logger.error("EventHandler receive unknown message")

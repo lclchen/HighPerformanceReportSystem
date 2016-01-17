@@ -13,8 +13,8 @@ object RunSingleNode {
     val system = new SingleNodeSystem()
     system.createDefaultCappedCollection
     //disable recovery-module
-    system.setEvtRecoveryAvailable(false)
-    system.setCmdRecoveryAvailable(false)
+    //system.setEvtRecoveryAvailable(false)
+    //system.setCmdRecoveryAvailable(false)
 
     //options - to change different shardings strategies
     //system.setShardingsNumber(10)

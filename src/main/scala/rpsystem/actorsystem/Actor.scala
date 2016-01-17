@@ -35,7 +35,7 @@ class CommandMiddlewareActor(cmdMidware:CommandMiddleware, cmdBusActor:ActorRef)
     }
     catch{
       case e: akka.pattern.AskTimeoutException => 
-        logger.warn("CommandBus not response, re-initialize CommandMiddleware")
+        logger.error("CommandBus not response, re-initialize CommandMiddleware")
         preStart
       case _ => 
         logger.error("Unknown Exception, re-initialize CommandMiddleware")
@@ -61,7 +61,7 @@ class CommandBusActor(cmdBus:CommandBus, cmdHdlActors: Seq[ActorRef], evtBusActo
     case IsCommandBusReady => sender ! CommandBusIsReady
     case CommandHandlerIsReady =>
     case EventBusIsReady =>
-    case _ => logger.warn("Wrong Type of Command")
+    case _ => logger.error("Wrong Type of Command")
   }
   
   override def preStart = {
@@ -69,7 +69,7 @@ class CommandBusActor(cmdBus:CommandBus, cmdHdlActors: Seq[ActorRef], evtBusActo
 	  Await.result(evtBusActor.ask(IsEventBusReady)(60 seconds), Duration.Inf)	  
     }catch{
       case e: akka.pattern.AskTimeoutException => 
-        logger.warn("EventBus not response, re-initialize CommandBus")
+        logger.error("EventBus not response, re-initialize CommandBus")
         preStart
       case _ => 
         logger.error("Unknown Exception, re-initialize CommandBus")
@@ -80,7 +80,7 @@ class CommandBusActor(cmdBus:CommandBus, cmdHdlActors: Seq[ActorRef], evtBusActo
       cmdHdlActors.foreach(actor => Await.result(actor.ask(IsCommandHandlerReady)(60 seconds), Duration.Inf))
     }catch{
       case e: akka.pattern.AskTimeoutException => 
-        logger.warn("CommandHandler not response, re-initialize CommandBus")
+        logger.error("CommandHandler not response, re-initialize CommandBus")
         preStart
       case _ => 
         logger.error("Unknown Exception, re-initialize CommandBus")
@@ -109,7 +109,7 @@ class CommandHandlerActor(cmdHdl: CommandHandler, evtBusActor: ActorRef) extends
     }  
     case IsCommandHandlerReady => sender ! CommandBusIsReady()
     case EventBusIsReady =>
-    case _ => logger.warn("Account Actor receive an error message.")
+    case _ => logger.error("Account Actor receive an error message.")
   }
   
   override def preStart = {
@@ -118,7 +118,7 @@ class CommandHandlerActor(cmdHdl: CommandHandler, evtBusActor: ActorRef) extends
     }
     catch{
       case e: akka.pattern.AskTimeoutException => 
-        logger.warn("EventBus not response, re-initialize EventHandler")
+        logger.error("EventBus not response, re-initialize EventHandler")
         preStart
       case _ => 
         logger.error("Unknown Exception, re-initialize EventHandler")
@@ -153,7 +153,7 @@ class EventBusActor(evtBus:EventBus) extends Actor {
                	      Thread.sleep(6000)
                   pair._2 ! sentEvts
                 }
-              case None => logger.warn("Eb receive(): can not find this packMap: " + pair._1)
+              case None => logger.error("Eb receive(): can not find this packMap: " + pair._1)
             }
           }
         })
@@ -172,7 +172,7 @@ class EventBusActor(evtBus:EventBus) extends Actor {
                	    Thread.sleep(6000)
                 pair._2 ! sentEvts
               }
-            case None => logger.warn("Eb receive(): can not find this packMap: " + pair._1)
+            case None => logger.error("Eb receive(): can not find this packMap: " + pair._1)
           }
         }
       })
@@ -194,12 +194,12 @@ class EventBusActor(evtBus:EventBus) extends Actor {
                 if(! isSet)
                   li += c
               }
-            case None => logger.warn("EB receive EventSubscribe_account:can not find this EH'ID")
+            case None => logger.error("EB receive EventSubscribe_account:can not find this EH'ID")
           }
         case c:EventSubscribe => 
           contentMap.get(c.id) match{
             case Some(li) => li += c             
-            case None => logger.warn("EB receive EventSubscribe:can not find this EH'ID")
+            case None => logger.error("EB receive EventSubscribe:can not find this EH'ID")
           }          
       }
     case delSub: EventSubscribeCancel =>
@@ -216,19 +216,19 @@ class EventBusActor(evtBus:EventBus) extends Actor {
                   }
                 })
               }              
-            case None => logger.warn("EB receive EventSubscribeCancel_accountID:can not find this EH'ID")
+            case None => logger.error("EB receive EventSubscribeCancel_accountID:can not find this EH'ID")
           }
         case c: EventSubscribeCancel_All =>
           contentMap.get(c.id) match{
             case Some(li) =>
               li.clear
-            case None => logger.warn("EB receive EventSubscribeCancel_All:can not find this EH'ID")
+            case None => logger.error("EB receive EventSubscribeCancel_All:can not find this EH'ID")
           }
         case c: EventSubscribe =>
           contentMap.get(c.id) match{
             case Some(li) =>
               li -= c    
-            case None => logger.warn("EB receive EventSubscribe:can not find this EH'ID")
+            case None => logger.error("EB receive EventSubscribe:can not find this EH'ID")
           }
       }
     case control: SystemControl =>{
@@ -252,7 +252,7 @@ class EventBusActor(evtBus:EventBus) extends Actor {
       }
     }
     case IsEventBusReady => sender ! EventBusIsReady 
-    case _ => logger.warn("Error messages are sent to the Mongo-Actor")
+    case _ => logger.error("Error messages are sent to the Mongo-Actor")
   }
   
   override def preStart = {
@@ -321,7 +321,7 @@ class EventBusActor(evtBus:EventBus) extends Actor {
           }
         })
       case None => 
-        logger.warn("EB, isMatch(): can not find id:" + id.toString)       
+        logger.error("EB, isMatch(): can not find id:" + id.toString)
     }
     return false
   }
@@ -331,5 +331,19 @@ class EventBusActor(evtBus:EventBus) extends Actor {
       case Some(str) => return str
       case None => logger.error("getString: get None"); return null
     }
+  }
+}
+
+
+class EventHandlerActor(evtHdl: EventHandler) extends Actor {
+  override def receive = {
+    case evt: Event =>
+      evtHdl.handle(evt)
+    case _ =>
+      logger.error("EventHandler:" + evtHdl.uuid.toString + " receive a wrong type message.")
+  }
+
+  override def preStart = {
+    logger.info("EventHandler:" + evtHdl.uuid.toString + " starts successfully!")
   }
 }
