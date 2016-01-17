@@ -47,7 +47,6 @@ class CommandMiddlewareActor(cmdMidware:CommandMiddleware, cmdBusActor:ActorRef)
 
 
 class CommandBusActor(cmdBus:CommandBus, cmdHdlActors: Seq[ActorRef], evtBusActor:ActorRef) extends Actor{
-  var i=1
   override def receive = {
     case cmd: Command => 
       cmdBus.transform(cmd).foreach(c => {
@@ -56,9 +55,7 @@ class CommandBusActor(cmdBus:CommandBus, cmdHdlActors: Seq[ActorRef], evtBusActo
           Thread.sleep(6000)
         }
         cmdBus.recordSentCommand(c)
-        //cmdHdlActor ! c
-        i+=1
-        println(i)
+        cmdHdlActor ! c
       })
     
     case IsCommandBusReady => sender ! CommandBusIsReady
