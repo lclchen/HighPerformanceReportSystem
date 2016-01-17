@@ -10,7 +10,7 @@ object JedisTest {
       val client = pool.getResource
       client.set("a", "b")
       //p.exec()
-      logger.info(i)
+      logger.info(i.toString)
       pool.returnResource(client)
     }
   }
