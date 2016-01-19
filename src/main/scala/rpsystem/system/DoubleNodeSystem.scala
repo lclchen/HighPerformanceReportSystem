@@ -1,3 +1,7 @@
+/*
+ * Collaborative Applied Research and Development between Morgan Stanley and University
+ */
+
 package rpsystem.system
 
 import akka.actor._
@@ -7,6 +11,7 @@ import com.mongodb.casbah.Imports.MongoClient
 import com.mongodb.casbah.commons.Imports.MongoDBObject
 import com.mongodb.casbah.MongoCollection
 import com.mongodb.casbah.MongoDB
+
 import rpsystem.domain._
 import rpsystem.actorsystem._
 import rpsystem.persistence._
@@ -93,10 +98,12 @@ class DomainOfDoubleNodeSystem {
     .getDB(config.getString("system.recovery.event.mongo.db"))
     .apply(config.getString("system.recovery.event.mongo.collection"))
 
-  var mongodbAccountStore:MongoDB = MongoClient(config.getString("system.command-handler.mongo.default.account-store.host"),
+  var mongodbAccountStore:MongoDB = MongoClient(
+    config.getString("system.command-handler.mongo.default.account-store.host"),
     config.getInt("system.command-handler.mongo.default.account-store.port"))
     .getDB(config.getString("system.command-handler.mongo.default.account-store.db"))
-  var mongodbEventStore:MongoDB = MongoClient(config.getString("system.command-handler.mongo.default.event-store.host"),
+  var mongodbEventStore:MongoDB = MongoClient(
+    config.getString("system.command-handler.mongo.default.event-store.host"),
     config.getInt("system.command-handler.mongo.default.event-store.port"))
     .getDB(config.getString("system.command-handler.mongo.default.event-store.db"))
 
@@ -213,7 +220,8 @@ class DomainOfDoubleNodeSystem {
   }
 
   def getDefaultCommandRecoveryService():CommandRecoveryService = {
-    val redisProcessingCmd = new RedisProcessingCmdRecStorage(new Jedis(config.getString("system.recovery.command.redis.host"),
+    val redisProcessingCmd = new RedisProcessingCmdRecStorage(new Jedis(
+      config.getString("system.recovery.command.redis.host"),
       config.getInt("system.recovery.command.redis.port")))
     val mongoMessageCmd = new MongoMessageCmdRecStorage(cmdMessageMongoCol)
     val cmdRecoveryService = new CommandRecoveryService(redisProcessingCmd, mongoMessageCmd)
@@ -222,7 +230,8 @@ class DomainOfDoubleNodeSystem {
   }
 
   def getDefaultEventRecoveryService():EventRecoveryService = {
-    val redisProcessingEvt = new RedisProcessingEvtRecStorage(new Jedis(config.getString("system.recovery.event.redis.host"),
+    val redisProcessingEvt = new RedisProcessingEvtRecStorage(new Jedis(
+      config.getString("system.recovery.event.redis.host"),
       config.getInt("system.recovery.event.redis.port")))
     val mongoMessageEvt = new MongoMessageEvtRecStorage(evtMessageMongoCol)
     val evtRecoveryService = new EventRecoveryService(redisProcessingEvt, mongoMessageEvt)

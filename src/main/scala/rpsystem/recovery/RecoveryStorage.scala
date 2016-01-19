@@ -1,82 +1,117 @@
+/*
+ * Collaborative Applied Research and Development between Morgan Stanley and University
+ */
+
 package rpsystem.recovery
 
-import rpsystem.domain._
-import rpsystem.persistence._
 import java.util.UUID
 import java.util.Date
-import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.HashMap
-import scala.collection.JavaConversions._
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
+
 import redis.clients.jedis._
 import com.mongodb.WriteConcern
 import com.mongodb.casbah.MongoDB
 import com.mongodb.casbah.MongoCollection
 import com.mongodb.casbah.commons.Imports.MongoDBObject
 import com.mongodb.casbah.commons.Imports.DBObject
-import scala.concurrent.Await
-import scala.concurrent.duration.SECONDS
 
+import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.HashMap
+import scala.collection.JavaConversions._
+
+import rpsystem.domain._
+import rpsystem.persistence._
+
+/** Basic interface for error-recovery. */
 class RecoveryStorage {
+
+  /** whether this error-recovery module is available. */
   var available: Boolean = true
+
   def setAvailable(isAvailable: Boolean): Unit = {
     available = isAvailable
   }
+
   def isAvailable: Boolean = {
     return available
   }
 }
 
+/** The trait for command error-recovery. */
 trait CmdRecoveryStorage extends RecoveryStorage
+
+/** The trait for event error-recovery. */
 trait EvtRecoveryStorage extends RecoveryStorage
 
-
+/** The trait for processing or unfinished commands recovery. */
 trait ProcessingCmdRecStorage extends CmdRecoveryStorage {
+
   def updateLastSentCommand(cmd: Command)
+
   def getLastSendCommandID(): Option[UUID]
+
   def getLastSendCmdIDAcctID: String
+
   def removeLastSendCommand
 
   def storeProcessingCommand(cmd: Command, date: Date)
-  def getProcessingCommand(): HashMap[String, String] //(cmdID+evtID.toString, Date.toString)
+
+  // its data format is [cmdID+evtID.toString, Date.toString]
+  def getProcessingCommand(): HashMap[String, String]
+
   def removeProcessedCommand(cmdID: UUID, acctID: UUID)
+
   def removeAllCommands()
 }
 
+/** The trait for missing commands recovery. */
 trait MessageCmdRecStorage extends CmdRecoveryStorage {
+
   def storeCommand(cmd: Command)
+
   def getCommand(cmdID: UUID): Option[Command]
+
   def findMissingCommands(cmdID: UUID): ListBuffer[Command]
+
   def getAllCommands(): ListBuffer[Command]
 }
 
-
+/** The trait for unfinished or processing events recovery. */
 trait ProcessingEvtRecStorage extends EvtRecoveryStorage {
+
   def updateLastSentEvent(evt: Event)
+
   def getLastSendEventID(): Option[UUID]
+
   def getLastSendEventMessage: String
+
   def removeLastSendEvent
 
   def storeProcessingEvent(evt: Event, date: Date, evtHdlNum: UUID)
+
   def getProcessingEvent(): HashMap[String, String]
+
   def removeProcessedEvent(evtID: UUID, evtHdlNum: UUID)
+
   def removeAllEvents()
 }
 
+/** The trait for missing events recovery. */
 trait MessageEvtRecStorage extends EvtRecoveryStorage {
   def storeEvent(evt: Event)
+
   def isEventExist(cmdID: UUID, acctID: UUID): Boolean
+
   def getEvent(evtID: UUID): Option[Event]
+
   def getEvents(cmdID: UUID, acctID: UUID): ListBuffer[Event]
+
   def findMissingEvents(evtID:UUID): ListBuffer[Event]
+
   def getAllEvents(): ListBuffer[Event]
 }
 
+/** The Redis implementation of ProcessingCmdRecStorage. */
 class RedisProcessingCmdRecStorage(client: Jedis) extends ProcessingCmdRecStorage {
-  //var redis:RedisClient = new RedisClient("127.0.0.1",6379);
-  //redis.select(0)
-  //redis.auth("","")
 
   override def updateLastSentCommand(cmd: Command) {
     client.set("LastSentCommand", cmd.commandID.toString + cmd.accountID.toString)
@@ -106,7 +141,7 @@ class RedisProcessingCmdRecStorage(client: Jedis) extends ProcessingCmdRecStorag
   }
 
   override def getProcessingCommand(): HashMap[String, String] = {
-    //[cmdID+acctID.toString, Date.toString]
+    // its data format is [cmdID+acctID.toString, Date.toString]
     var hashMap: HashMap[String, String] = new HashMap[String, String]
     mapAsScalaMap(client.hgetAll("ProcessingCommands")).foreach(pair => hashMap += pair)
     return hashMap
@@ -121,8 +156,9 @@ class RedisProcessingCmdRecStorage(client: Jedis) extends ProcessingCmdRecStorag
   }
 }
 
-
+/** The MongoDB implementation of MessageCmdRecStorage. */
 class MongoMessageCmdRecStorage(mongoCol: MongoCollection) extends MessageCmdRecStorage {
+
   override def storeCommand(cmd: Command) {
     mongoCol.insert(MongoORM.getObjFromCmd(cmd), WriteConcern.SAFE)
   }
@@ -140,8 +176,12 @@ class MongoMessageCmdRecStorage(mongoCol: MongoCollection) extends MessageCmdRec
     val listbuf = new ListBuffer[Command]
     mongoCol.find().foreach(obj => {
       findThisCommand match {
-        case true => listbuf += MongoORM.getCmdFromDBObj(obj)
-        case false => if (MongoORM.getUUID(obj, "CommandID").equals(cmdID)) findThisCommand = true
+        case true =>
+          listbuf += MongoORM.getCmdFromDBObj(obj)
+
+        case false =>
+          if (MongoORM.getUUID(obj, "CommandID").equals(cmdID))
+            findThisCommand = true
       }
     })
     return listbuf
@@ -154,8 +194,9 @@ class MongoMessageCmdRecStorage(mongoCol: MongoCollection) extends MessageCmdRec
   }
 }
 
-
+/** The Redis implementation of ProcessingEvtRecStorage. */
 class RedisProcessingEvtRecStorage(client: Jedis) extends ProcessingEvtRecStorage {
+
   override def updateLastSentEvent(evt: Event) {
     client.set("LastSentEvent", evt.eventID.toString + evt.commandID.toString + evt.accountID.toString)
   }
@@ -184,7 +225,7 @@ class RedisProcessingEvtRecStorage(client: Jedis) extends ProcessingEvtRecStorag
   }
 
   override def getProcessingEvent(): HashMap[String, String] = {
-    // return (EventID.toString, Date.toString)
+    // return [EventID.toString, Date.toString]
     var hashMap: HashMap[String, String] = new HashMap[String, String]
     mapAsScalaMap(client.hgetAll("ProcessingEvents")).foreach(pair => hashMap += pair)
     return hashMap
@@ -199,8 +240,9 @@ class RedisProcessingEvtRecStorage(client: Jedis) extends ProcessingEvtRecStorag
   }
 }
 
-
+/** The MongoDB implementation of MessageEvtRecStorage. */
 class MongoMessageEvtRecStorage(mongoCol: MongoCollection) extends MessageEvtRecStorage {
+
   override def storeEvent(evt: Event) {
     mongoCol.insert(MongoORM.getObjFromEvent(evt), WriteConcern.SAFE)
   }
@@ -231,7 +273,9 @@ class MongoMessageEvtRecStorage(mongoCol: MongoCollection) extends MessageEvtRec
     val listbuf = new ListBuffer[Event]
     mongoCol.find().foreach(obj => {
       findThisEvent match {
-        case true => listbuf += MongoORM.getEventFromDBObj(obj)
+        case true =>
+          listbuf += MongoORM.getEventFromDBObj(obj)
+
         case false => 
           if (MongoORM.getUUID(obj, "EventID").equals(evtID)) 
             findThisEvent= true

@@ -1,3 +1,7 @@
+/*
+ * Collaborative Applied Research and Development between Morgan Stanley and University
+ */
+
 package rpsystem.system
 
 import akka.actor._
@@ -7,6 +11,7 @@ import com.mongodb.casbah.Imports.MongoClient
 import com.mongodb.casbah.commons.Imports.MongoDBObject
 import com.mongodb.casbah.MongoCollection
 import com.mongodb.casbah.MongoDB
+
 import rpsystem.domain._
 import rpsystem.actorsystem._
 import rpsystem.persistence._
