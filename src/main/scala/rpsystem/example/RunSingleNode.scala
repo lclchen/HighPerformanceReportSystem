@@ -12,16 +12,17 @@ object RunSingleNode {
   def main(args: Array[String]): Unit = {
     val system = new SingleNodeSystem()
     system.createDefaultCappedCollection
+
     //disable recovery-module
-    //system.setEvtRecoveryAvailable(false)
-    //system.setCmdRecoveryAvailable(false)
+    system.setEvtRecoveryAvailable(false)
+    system.setCmdRecoveryAvailable(false)
 
     //options - to change different shardings strategies
-    //system.setShardingsNumber(10)
-    //system.setCmdBusMode(CommandBus.SHARDINGS_MODE_MOD_ACCOUTID(10))
+    system.setShardingsNumber(5)
+    system.setCmdBusMode(CommandBus.SHARDINGS_MODE_MOD_ACCOUTID(5))
 
     //options - to change different events packaging strategies
-    //system.setCmdHdlMode(CommandHandler.SNAPSHOT_MODE_EVENTSNUM(5, 0))
+    system.setCmdHdlMode(CommandHandler.SNAPSHOT_MODE_EVENTSNUM(5, 0))
     //system.setCmdHdlMode(CommandHandler.SNAPSHOT_MODE_MILLISECOND(60000, new java.util.Date().getTime()))
     
     system.initial
@@ -64,7 +65,7 @@ object RunSingleNode {
         i=1
 
       //change the frequency
-      if(i % 3 == 0)
+      if(i % 6 == 0)
         Thread.sleep(1)
     }
     
