@@ -22,7 +22,7 @@ object RunSingleNode {
     system.setCmdBusMode(CommandBus.SHARDINGS_MODE_MOD_ACCOUTID(5))
 
     //options - to change different events packaging strategies
-    system.setCmdHdlMode(CommandHandler.SNAPSHOT_MODE_EVENTSNUM(5, 0))
+    system.setCmdHdlMode(CommandHandler.SNAPSHOT_MODE_EVENTSNUM(10, 0))
     //system.setCmdHdlMode(CommandHandler.SNAPSHOT_MODE_MILLISECOND(60000, new java.util.Date().getTime()))
     
     system.initial
@@ -30,10 +30,10 @@ object RunSingleNode {
     // create virtual accounts for testing
     val scanner = new Scanner(System.in)
     Thread.sleep(2000)
-    logger.info("Create 10000 accounts example? (y/n)")
+    logger.info("Create " + accountNumber + " accounts example? (y/n)")
     if (scanner.next() == "y"){
       var accountIds:scala.collection.mutable.ArrayBuffer[UUID] = new scala.collection.mutable.ArrayBuffer[UUID]()
-      for(i <- 1 to 10000){
+      for(i <- 1 to accountNumber){
         val idStr: String = "550E8400-E29B-11D4-A716-4466" + (i + 10000000).toString        
         val id:UUID = java.util.UUID.fromString(idStr)
         accountIds = accountIds :+ id      
@@ -61,11 +61,11 @@ object RunSingleNode {
       //system.sendCommand(cmd2)
 
       i += 1
-      if(i == 10001)
+      if(i == accountNumber + 1)
         i=1
 
       //change the frequency
-      if(i % 6 == 0)
+      if(i % 10 == 0)
         Thread.sleep(1)
     }
     
