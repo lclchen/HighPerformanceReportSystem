@@ -29,6 +29,7 @@ object RunSingleNode {
 
     // create virtual accounts for testing
     val scanner = new Scanner(System.in)
+    val accountNumber: Int = 1000000
     Thread.sleep(2000)
     logger.info("Create " + accountNumber + " accounts example? (y/n)")
     if (scanner.next() == "y"){
